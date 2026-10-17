@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # patientmon: giai đoạn 0 đến 5
 
 Phát hiện hành động bất thường của bệnh nhân từ video. Phần này xây tới **Giai đoạn 5** theo đúng 8 giai đoạn của đồ án:
@@ -76,3 +77,6 @@ python -m unittest discover -s tests -v     # hoặc pytest
 - Phần gọi Ultralytics: `detection/yolo.py`, `detection/train.py`, `pose/yolo_pose.py` và các script `prelabel`, `train_detector`, `evaluate_detector`, `extract_skeletons`.
 
 Nếu có lỗi, gửi nguyên nội dung báo lỗi; phiên bản thư viện được ghi vào `run_info.json` mỗi lần huấn luyện.
+=======
+# Patietmon
+>>>>>>> afdd96badd7b2cbfccf1a8da4f8464b5b717a796
