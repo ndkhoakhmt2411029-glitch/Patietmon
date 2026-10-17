@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "patientmon"
+version = "0.1.0"
+description = "Phát hiện hành động bất thường của bệnh nhân từ video (giai đoạn 0-2: dữ liệu và YOLOv8)"
+requires-python = ">=3.9"
+dependencies = ["numpy", "scipy", "opencv-python", "PyYAML", "ultralytics"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,124 @@
+# Cấu hình giai đoạn 1-5. Mọi con số và đường dẫn nằm ở đây.
+# Mọi con số và đường dẫn đều nằm ở đây, không viết cứng trong code.
+
+paths:
+  data_root: data            # trên Colab: đặt đường dẫn tuyệt đối trên Google Drive
+  videos: videos             # video gốc, cho phép thư mục con
+  frames: frames             # khung hình đã cắt
+  labels_auto: labels_auto   # nhãn tự động (chưa duyệt)
+  labels_reviewed: labels_reviewed  # nhãn đã được người duyệt (nguồn duy nhất để huấn luyện)
+  yolo_dataset: yolo         # bộ dữ liệu định dạng YOLO sinh ra từ các nhãn đã duyệt
+  skeletons: skeletons       # skeleton đã trích (mỗi nguồn một file .npz)
+  windows: windows           # cửa sổ skeleton dùng huấn luyện (windows.npz, index.csv)
+  runs: runs
+  meta_file: null            # CSV tùy chọn trong data_root: video_id,group,<cột khác như condition>
+
+frames:
+  every_sec: 1.0             # lấy một khung mỗi N giây
+  min_diff: 2.0              # bỏ khung gần giống khung trước (0 = tắt)
+  max_per_video: null        # giới hạn số khung mỗi video (null = không giới hạn)
+  jpeg_quality: 95
+
+source:                      # video và thư mục ảnh đều được nhận từ paths.videos
+  image_kind: sequence       # sequence: ảnh chụp liên tiếp (như UP-Fall) | stills: ảnh đơn lẻ
+  image_fps: null            # BẮT BUỘC nếu có chuỗi ảnh liên tiếp (số ảnh mỗi giây)
+
+prelabel:                    # mô hình "thầy" tạo nhãn nháp
+  weights: yolov8x.pt
+  conf: 0.25
+  iou: 0.7
+  imgsz: 640
+  device: null               # null = tự chọn; hoặc "cpu", "0"
+  batch: 16
+  confident_score: 0.6       # nhãn có điểm thấp hơn mức này được xếp vào nhóm "cần xem kỹ"
+  class_map: {0: 0}          # id lớp COCO -> id lớp của bộ dữ liệu (0 = person). Thêm giường: {0: 0, 59: 1}
+
+dataset:
+  names: [person]            # tên lớp của bộ dữ liệu, thứ tự = id
+  ratios: {train: 0.7, val: 0.15, test: 0.15}
+  seed: 0
+
+train:
+  weights: yolov8s.pt
+  epochs: 50
+  imgsz: 640
+  batch: 16
+  patience: 15
+  seed: 0
+  device: null
+  freeze: null               # số lớp đầu đóng băng (hữu ích khi dữ liệu rất ít)
+  name: person_det
+
+evaluate:
+  baseline_weights: yolov8s.pt     # mô hình có sẵn, dùng làm mốc so sánh
+  baseline_class_map: {0: 0}
+  conf: 0.01                       # thấp để tính AP
+  report_conf: 0.25                # ngưỡng dùng để báo precision/recall
+  iou_match: 0.5
+  imgsz: 640
+  batch: 16
+  target_class: 0
+
+# ---------------- Giai đoạn 2-4: trích skeleton ----------------
+detector:                    # Giai đoạn 2: phát hiện người khi trích skeleton
+  weights: yolov8m.pt        # hoặc đường dẫn best.pt đã fine-tune (khi đó đặt class_map: null)
+  conf: 0.25
+  iou: 0.7
+  imgsz: 640
+  device: null
+  batch: 8
+  class_map: {0: 0}
+
+tracking:                    # Giai đoạn 3: ByteTrack
+  high_thresh: 0.25
+  low_thresh: 0.1
+  new_thresh: 0.25
+  buffer: 30                 # số khung (quy ở 30 FPS) giữ track bị mất
+  match_thresh: 0.8
+
+pose:                        # Giai đoạn 4: pose chạy riêng trên từng khung người
+  weights: yolov8m-pose.pt
+  imgsz: 256
+  margin: 0.1
+  device: null
+
+skeleton:
+  target_fps: null           # null = giữ FPS gốc; hoặc lấy mẫu xuống (ví dụ 15) để các nguồn cùng nhịp
+
+# ---------------- Giai đoạn 5: phân loại hành động ----------------
+action:
+  classes: [stand, sit, lie, walk, fall]
+  # Nhãn một-cho-cả-đoạn, lấy từ ID của nguồn (đường dẫn viết không dấu, nối bằng "__").
+  # Luật đầu tiên khớp thắng; không phân biệt hoa thường. Ví dụ (HÃY SỬA theo tên thư mục của bạn):
+  #   - {pattern: "walk", label: walk}
+  #   - {pattern: "fall", label: fall}
+  label_rules: []
+  group_pattern: null        # regex bắt mã người, ví dụ "subject(\d+)"; các đoạn cùng người luôn cùng một tập
+  window_frames: 32
+  stride_frames: 16
+  min_track_frames: 32
+  max_missing: 0.5
+  max_tracks_per_clip: 1
+  conf_threshold: 0.2
+  ratios: {train: 0.7, val: 0.15, test: 0.15}
+  seed: 0
+
+train_action:
+  model: stgcnpp             # stgcnpp | lstm | gru | tcn
+  stream: joint              # joint | bone | motion
+  epochs: 60
+  batch: 32
+  lr: 0.001
+  weight_decay: 0.0001
+  patience: 15
+  seed: 0
+  device: null
+  augment: true
+  class_weights: true
+  base_channels: 64
+  layers: 10
+  rnn_layers: 2
+  hidden: 128
+  tcn_layers: 4
+  dropout: 0.2
+  name: null
